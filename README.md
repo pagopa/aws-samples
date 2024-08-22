@@ -1,4 +1,4 @@
-# AWS Terraform Samples
+# AWS Samples
 
 This repository contains a collection of configuration samples for AWS services. These samples demonstrate best practices and common patterns for infrastructure as code using Terraform, cloudformation or CDK.
 
