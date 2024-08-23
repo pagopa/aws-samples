@@ -10,5 +10,5 @@ variable "cognito_user_pool_domain" {
 
 variable "cognito_callback_url" {
   type    = string
-  default = "https://7js5aw2t44.execute-api.eu-south-1.amazonaws.com/prod/api"
+  default = "https://037hui4csc.execute-api.eu-south-1.amazonaws.com/prod"
 }

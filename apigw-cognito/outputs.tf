@@ -1,5 +1,6 @@
-output "api_invoke_url" {
-  value = "${aws_api_gateway_deployment.main.invoke_url}${aws_api_gateway_stage.main.stage_name}${aws_api_gateway_resource.root.path}"
+output "api_endpoint" {
+  description = "The endpoint of the API Gateway"
+  value       = aws_apigatewayv2_stage.stage.invoke_url
 }
 
 output "cognito_user_pool_client_id" {

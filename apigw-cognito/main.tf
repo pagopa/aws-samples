@@ -32,6 +32,7 @@ resource "aws_cognito_user_pool_domain" "main" {
   user_pool_id = aws_cognito_user_pool.main.id
 }
 
+/*
 resource "aws_cognito_resource_server" "resource" {
   identifier = "https://${var.cognito_user_pool_domain}.pagopa.it"
   name       = "My API"
@@ -48,6 +49,7 @@ resource "aws_cognito_resource_server" "resource" {
 
   user_pool_id = aws_cognito_user_pool.main.id
 }
+*/
 
 resource "aws_cognito_user_pool_client" "client" {
   name         = "my-app-client"
@@ -58,16 +60,19 @@ resource "aws_cognito_user_pool_client" "client" {
   explicit_auth_flows = [
     "ALLOW_USER_PASSWORD_AUTH",
     "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH",
   ]
+
 
   allowed_oauth_flows  = ["code", "implicit"]
   allowed_oauth_scopes = ["email", "openid"]
-  callback_urls        = [var.cognito_callback_url]
-  logout_urls          = ["https://sandbx.pagopa.it/logout"] # Update with your app's logout URL
+
+  callback_urls = [var.cognito_callback_url]
+  logout_urls   = ["https://sandbx.pagopa.it/logout"] # Update with your app's logout URL
 
   supported_identity_providers = ["COGNITO"]
 
-  generate_secret = true
+  #generate_secret = true
 
 }
 
@@ -91,101 +96,91 @@ resource "aws_cognito_user" "test_user" {
   password = random_password.test_user_password.result
 }
 
-# Apigw rest api
+# Create a Lambda Function
+resource "aws_lambda_function" "hello_world" {
+  function_name = "hello_world_function"
+  runtime       = "python3.9"
+  role          = aws_iam_role.lambda_exec.arn
+  handler       = "lambda_function.lambda_handler"
 
-resource "aws_api_gateway_rest_api" "main" {
-  name        = "my-api"
-  description = "My API Gateway REST API"
-}
+  # Basic "Hello World" Lambda function code
+  filename = "./lambda/lambda.zip"
 
+  source_code_hash = filebase64sha256("./lambda/lambda.zip")
 
-resource "aws_api_gateway_resource" "root" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  parent_id   = aws_api_gateway_rest_api.main.root_resource_id
-  path_part   = "api"
-}
-
-resource "aws_api_gateway_method" "root" {
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  resource_id   = aws_api_gateway_resource.root.id
-  http_method   = "GET"
-  authorization = "COGNITO_USER_POOLS"
-  authorizer_id = aws_api_gateway_authorizer.main.id
-}
-
-## Cognito authentication.
-resource "aws_api_gateway_authorizer" "main" {
-  name          = "cognito-authorizer"
-  type          = "COGNITO_USER_POOLS"
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  provider_arns = [aws_cognito_user_pool.main.arn]
-}
-
-## Mock integration 
-
-resource "aws_api_gateway_integration" "root" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.root.id
-  http_method = aws_api_gateway_method.root.http_method
-  type        = "MOCK"
-
-  request_templates = {
-    "application/json" = jsonencode({
-      statusCode = 200
-    })
+  environment {
+    variables = {
+      LOG_LEVEL = "INFO"
+    }
   }
 }
 
-resource "aws_api_gateway_method_response" "root" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.root.id
-  http_method = aws_api_gateway_method.root.http_method
-  status_code = "200"
+# IAM Role for Lambda
+resource "aws_iam_role" "lambda_exec" {
+  name = "lambda_exec_role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "lambda.amazonaws.com"
+        }
+      },
+    ]
+  })
 }
 
-resource "aws_api_gateway_integration_response" "root" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  resource_id = aws_api_gateway_resource.root.id
-  http_method = aws_api_gateway_method.root.http_method
-  status_code = aws_api_gateway_method_response.root.status_code
-
-  response_templates = {
-    "application/json" = jsonencode({
-      message = "This is a mock response"
-    })
-  }
+# Attach the AWSLambdaBasicExecutionRole policy to the IAM role
+resource "aws_iam_role_policy_attachment" "lambda_exec_policy" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-## Deploy API
-
-resource "aws_api_gateway_deployment" "main" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-
-  triggers = {
-    redeployment = sha1(jsonencode([
-      aws_api_gateway_resource.root.id,
-      aws_api_gateway_method.root.id,
-      aws_api_gateway_integration.root.id,
-    ]))
-  }
-
-  lifecycle {
-    create_before_destroy = true
-  }
+# Create an API Gateway V2 (HTTP API)
+resource "aws_apigatewayv2_api" "api" {
+  name          = "auth-api"
+  protocol_type = "HTTP"
 }
 
-resource "aws_api_gateway_stage" "main" {
-  deployment_id = aws_api_gateway_deployment.main.id
-  rest_api_id   = aws_api_gateway_rest_api.main.id
-  stage_name    = "prod"
-}
-resource "aws_api_gateway_method_settings" "all" {
-  rest_api_id = aws_api_gateway_rest_api.main.id
-  stage_name  = aws_api_gateway_stage.main.stage_name
-  method_path = "*/*"
+# Create a Lambda Integration
+resource "aws_apigatewayv2_integration" "lambda_integration" {
+  api_id             = aws_apigatewayv2_api.api.id
+  integration_type   = "AWS_PROXY"
+  connection_type    = "INTERNET"
+  integration_method = "POST"
+  integration_uri    = aws_lambda_function.hello_world.invoke_arn
 
-  settings {
-    metrics_enabled = true
-    logging_level   = "INFO"
+  payload_format_version = "2.0"
+}
+
+# Create a Route
+resource "aws_apigatewayv2_route" "route" {
+  api_id             = aws_apigatewayv2_api.api.id
+  route_key          = "GET /{proxy+}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.cognito_authorizer.id
+  target             = "integrations/${aws_apigatewayv2_integration.lambda_integration.id}"
+}
+
+# Create a Stage
+resource "aws_apigatewayv2_stage" "stage" {
+  api_id      = aws_apigatewayv2_api.api.id
+  name        = "prod"
+  auto_deploy = true
+}
+
+# Create a Cognito Authorizer
+resource "aws_apigatewayv2_authorizer" "cognito_authorizer" {
+  api_id           = aws_apigatewayv2_api.api.id
+  authorizer_type  = "JWT"
+  identity_sources = ["$request.header.Authorization"]
+
+  name = "cognito-authorizer"
+  jwt_configuration {
+    audience = [aws_cognito_user_pool_client.client.id]
+    issuer   = "https://${aws_cognito_user_pool.main.endpoint}"
   }
 }
