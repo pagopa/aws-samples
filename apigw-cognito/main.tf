@@ -67,7 +67,7 @@ resource "aws_cognito_user_pool_client" "client" {
   allowed_oauth_flows  = ["code", "implicit"]
   allowed_oauth_scopes = ["email", "openid"]
 
-  callback_urls = [var.cognito_callback_url]
+  callback_urls = ["${aws_apigatewayv2_stage.stage.invoke_url}"]
   logout_urls   = ["https://sandbx.pagopa.it/logout"] # Update with your app's logout URL
 
   supported_identity_providers = ["COGNITO"]
@@ -86,10 +86,10 @@ resource "random_password" "test_user_password" {
 
 resource "aws_cognito_user" "test_user" {
   user_pool_id = aws_cognito_user_pool.main.id
-  username     = "testuser@sandbox.pagopa.it"
+  username     = var.cognito_test_user.username
 
   attributes = {
-    email          = "testuser@sandbox.pagopa.it"
+    email          = var.cognito_test_user.email
     email_verified = true
   }
 

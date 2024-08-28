@@ -14,9 +14,13 @@ output "cognito_user_pool_domain" {
 }
 
 output "cognito_signin_url" {
-  value = "https://${var.cognito_user_pool_domain}.auth.${var.aws_region}.amazoncognito.com/login?response_type=token&client_id=${aws_cognito_user_pool_client.client.id}&redirect_uri=${var.cognito_callback_url}"
+  value = "https://${var.cognito_user_pool_domain}.auth.${var.aws_region}.amazoncognito.com/login?response_type=token&client_id=${aws_cognito_user_pool_client.client.id}&redirect_uri=${aws_apigatewayv2_stage.stage.invoke_url}"
 }
 
+
+output "test_user" {
+  value = var.cognito_test_user
+}
 
 output "test_user_password" {
   value     = random_password.test_user_password.result

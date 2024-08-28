@@ -8,7 +8,15 @@ variable "cognito_user_pool_domain" {
   default = "sandbox"
 }
 
-variable "cognito_callback_url" {
-  type    = string
-  default = "https://037hui4csc.execute-api.eu-south-1.amazonaws.com/prod"
+
+variable "cognito_test_user" {
+  type = object({
+    username = string
+    email    = string
+  })
+  default = {
+    username = "testuser"
+    email    = "testuser@sandbox.pagopa.it"
+  }
+
 }
