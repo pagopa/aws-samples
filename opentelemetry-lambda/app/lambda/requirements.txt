@@ -1,0 +1,7 @@
+boto3
+opentelemetry-distro
+opentelemetry-instrumentation-aws-lambda
+opentelemetry-exporter-otlp
+opentelemetry-api 
+opentelemetry-sdk
+opentelemetry-instrumentation-botocore
