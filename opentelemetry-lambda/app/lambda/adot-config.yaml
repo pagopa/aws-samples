@@ -1,0 +1,17 @@
+exporters:
+  awsxray:
+    region: eu-central-1
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+service:
+  pipelines:
+    traces:
+      exporters:
+        - awsxray
+      receivers:
+        - otlp
