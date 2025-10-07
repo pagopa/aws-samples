@@ -5,6 +5,7 @@ This repository contains a collection of configuration samples for AWS services.
 ## Samples
 
 1. [CloudFront with S3 Origin](./cloudfront-with-s3-origin)
+2. [Lambda with opentelemetry](./opentelemetry-lambda)
 
 
 ## Contributing
