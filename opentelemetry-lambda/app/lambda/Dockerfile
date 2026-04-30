@@ -1,4 +1,4 @@
-FROM public.ecr.aws/lambda/python:3.9 
+FROM public.ecr.aws/lambda/python:3.9@sha256:ed423f4168b793088d341d8bc1c5ae0ca26a56d04adfd2f3254aca8445aa34c4 
 
 # Install utilities 
 RUN pip install --upgrade pip 
